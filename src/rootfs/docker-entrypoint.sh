@@ -65,10 +65,11 @@ j2Templates="
 "
 
 for file in $j2Templates; do
-	/root/.local/bin/jinja2 -o "$file" "$file.j2"
+	jinja2 -o "$file" "$file.j2"
 
-	chmod --reference="$file.j2" "$file"
-	chown --reference="$file.j2" "$file"
+	# can't use --reference with alpine
+	chmod "$(stat -c '%a' "$file.j2")" "$file"
+	chown "$(stat -c '%U:%G' "$file.j2")" "$file"
 done
 
 exec "$@"
