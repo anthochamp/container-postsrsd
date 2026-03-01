@@ -1,0 +1,168 @@
+# PostSRSd Configuration File
+# Copyright holder gives unlimited permission to copy, distribute and modify this file.
+# See https://github.com/roehling/postsrsd for full documentation
+
+# ==============================================================================
+# Local Domains
+# ==============================================================================
+# Your local domains need not be rewritten, so PostSRSd has to know about them.
+# Mail FROM these domains that is forwarded externally will be rewritten TO the
+# srs-domain. This prevents SPF failures when forwarding mail.
+#
+# Format: comma-separated list in curly braces
+# Example: domains = { "example.com", "example.org", "example.net" }
+# Input: POSTSRSD_LOCAL_DOMAINS="ac.com,bc.com" (comma-separated)
+#
+{% set domain_list = environ('POSTSRSD_LOCAL_DOMAINS').split(',') %}
+domains = { "{{ domain_list|join('", "') }}" }
+
+# ==============================================================================
+# Dedicated SRS Rewrite Domain
+# ==============================================================================
+# The local domain which is used to create the ephemeral SRS envelope addresses.
+# It is recommended that you use a dedicated mail domain for SRS if you serve
+# multiple unrelated domains (e.g., ac.com, bc.com), to prevent privacy issues.
+#
+# For multi-domain hosting, use a subdomain of your server's domain:
+#   - Server hostname: mail.cc.com
+#   - SRS domain: srs.cc.com
+#   - Mail domains: ac.com, bc.com (listed above)
+#
+# All forwarded mail will be rewritten to: SRS0=xxx@srs.cc.com
+#
+srs-domain = "{{ environ('POSTSRSD_SRS_DOMAIN') }}"
+
+# ==============================================================================
+# Socketmap Lookup Table for Postfix Integration
+# ==============================================================================
+# PostSRSd interacts with Postfix through the canonicalization lookup tables
+# of the cleanup daemon.
+#
+# For Docker deployments, we use TCP socketmap for cross-container communication.
+# The port is exposed in the Dockerfile.
+#
+# Postfix configuration should use:
+#   sender_canonical_maps = socketmap:inet:postsrsd:11380:forward
+#   recipient_canonical_maps = socketmap:inet:postsrsd:11380:reverse
+#
+socketmap = inet:11380@0.0.0.0
+
+# ==============================================================================
+# Socketmap Connection Keep-Alive Timeout
+# ==============================================================================
+# After PostSRSd has served a socketmap request, it will keep the connection
+# open for a while longer, in case Postfix has additional queries. PostSRSd
+# will close the connection after the configured time (in seconds) has expired.
+#
+keep-alive = {{ environ('POSTSRSD_KEEP_ALIVE') }}
+
+# ==============================================================================
+# Original Envelope Sender Handling
+# ==============================================================================
+# When the envelope sender is rewritten, the original address can either be
+# embedded in the rewritten address, or stored in a local database.
+#
+# - "embedded": Stateless, but limits sender addresses to 51 octets
+# - "database": No length limit, but requires SQLite/Redis and storage
+#
+# For most use cases, "embedded" is recommended as the vast majority of mail
+# addresses are short enough.
+#
+original-envelope = {{ environ('POSTSRSD_ORIGINAL_ENVELOPE') }}
+
+{% if environ('POSTSRSD_ENVELOPE_DATABASE') %}
+# ==============================================================================
+# Database for Envelope Sender Storage
+# ==============================================================================
+# If original-envelope is set to "database", this database will be used to
+# store sender addresses. Ignored if original-envelope is "embedded".
+#
+# PostSRSd reads this database after it chroots, so the path is relative to
+# the chroot directory (or absolute if chroot is disabled).
+#
+# Examples:
+#   envelope-database = sqlite:./senders.db
+#   envelope-database = redis:localhost:6379
+#
+envelope-database = "{{ environ('POSTSRSD_ENVELOPE_DATABASE') }}"
+{% endif %}
+
+# ==============================================================================
+# Secret Keys for Signing and Verifying SRS Addresses
+# ==============================================================================
+# Rewritten addresses are tagged with a truncated HMAC-SHA1 signature to prevent
+# tampering and forged envelope addresses.
+#
+# The file contains one secret per line. If an incoming signature matches any
+# key, it is accepted. Outgoing signatures are always generated with the first
+# configured secret.
+#
+# PostSRSd reads this file before it chroots and drops root privileges.
+# The file will be auto-generated if it doesn't exist.
+#
+# To generate manually:
+#   openssl rand -base64 18 > postsrsd.secret
+#
+# In Docker, the file is created from POSTSRSD_SECRETS environment variable.
+# Use POSTSRSD_SECRETS__FILE to load from Docker secrets.
+#
+secrets-file = "/var/lib/postsrsd/postsrsd.secret"
+
+# ==============================================================================
+# SRS Tag Separator
+# ==============================================================================
+# This is the character following the initial SRS0 or SRS1 tag of a generated
+# sender address. Valid separators are "=", "+", and "-".
+#
+separator = "{{ environ('POSTSRSD_SEPARATOR') }}"
+
+# ==============================================================================
+# SRS Hash Signature Length
+# ==============================================================================
+# Any SRS address will be signed with a truncated hash to prevent tampering and
+# ensure that only legitimate email bounces will be returned to sender.
+#
+# The default length (4) provides adequate security without taking up too much
+# valuable space.
+#
+# WARNING: Changing this can break mail forwarding or create security issues.
+#
+hash-length = {{ environ('POSTSRSD_HASH_LENGTH') }}
+
+# ==============================================================================
+# SRS Minimum Acceptable Hash Signature Length
+# ==============================================================================
+# This is the minimum signature length that PostSRSd considers valid.
+#
+# This is a separate setting because if you decide to increase the hash length,
+# you may want to keep accepting the shorter hashes for a grace period.
+#
+# WARNING: Changing this can break mail forwarding or create security issues.
+#
+hash-minimum = {{ environ('POSTSRSD_HASH_MINIMUM') }}
+
+# ==============================================================================
+# Always Rewrite Sender Addresses
+# ==============================================================================
+# Force PostSRSd to rewrite any sender address, even if it has been rewritten
+# already. Generally, you do not want to do this.
+#
+always-rewrite = {{ environ('POSTSRSD_ALWAYS_REWRITE') }}
+
+# ==============================================================================
+# Execute PostSRSd as Unprivileged User
+# ==============================================================================
+# Drop root privileges and run as this user before entering the main loop and
+# handling untrusted input.
+#
+# In Docker, this is always the dedicated postsrsd user created in the image.
+#
+unprivileged-user = "postsrsd"
+
+# ==============================================================================
+# Debug Mode
+# ==============================================================================
+# This option makes PostSRSd more verbose in its logging, which can be useful
+# to hunt down configuration problems.
+#
+debug = {{ environ('POSTSRSD_DEBUG') }}
