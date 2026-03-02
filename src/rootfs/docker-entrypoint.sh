@@ -37,16 +37,7 @@ if [ -z "${POSTSRSD_SRS_DOMAIN:-}" ]; then
 	exit 1
 fi
 
-if [ -z "${POSTSRSD_LOCAL_DOMAINS:-}" ]; then
-	echo "$0": missing POSTSRSD_LOCAL_DOMAINS environment variable
-	exit 1
-fi
-
-if [ -z "${POSTSRSD_SECRETS:-}" ]; then
-	echo "$0": missing POSTSRSD_SECRETS environment variable
-	exit 1
-fi
-
+export POSTSRSD_LOCAL_DOMAINS="${POSTSRSD_LOCAL_DOMAINS:-}"
 export POSTSRSD_SEPARATOR="${POSTSRSD_SEPARATOR:-=}"
 export POSTSRSD_HASH_LENGTH="${POSTSRSD_HASH_LENGTH:-4}"
 export POSTSRSD_HASH_MINIMUM="${POSTSRSD_HASH_MINIMUM:-4}"
@@ -56,7 +47,12 @@ export POSTSRSD_ENVELOPE_DATABASE="${POSTSRSD_ENVELOPE_DATABASE:-}"
 export POSTSRSD_ALWAYS_REWRITE="${POSTSRSD_ALWAYS_REWRITE:-off}"
 export POSTSRSD_DEBUG="${POSTSRSD_DEBUG:-off}"
 
-printf '%s' "$POSTSRSD_SECRETS" > /var/lib/postsrsd/postsrsd.secret
+if [ -n "${POSTSRSD_SECRETS:-}" ]; then
+	printf '%s' "$POSTSRSD_SECRETS" > /var/lib/postsrsd/postsrsd.secret
+elif [ ! -f /var/lib/postsrsd/postsrsd.secret ]; then
+	openssl rand -base64 18 > /var/lib/postsrsd/postsrsd.secret
+fi
+
 chown postsrsd:postsrsd /var/lib/postsrsd/postsrsd.secret
 chmod 600 /var/lib/postsrsd/postsrsd.secret
 
@@ -65,7 +61,7 @@ j2Templates="
 "
 
 for file in $j2Templates; do
-	jinja2 -o "$file" "$file.j2"
+	export | jinja2 --format env -o "$file" "$file.j2"
 
 	# can't use --reference with alpine
 	chmod "$(stat -c '%a' "$file.j2")" "$file"

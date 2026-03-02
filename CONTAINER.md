@@ -3,10 +3,11 @@
 ## Required
 
 POSTSRSD_SRS_DOMAIN (required, e.g., srs.cc.com - the domain used for SRS rewriting)
-POSTSRSD_LOCAL_DOMAINS (required, e.g., ac.com,bc.com - comma-separated list of domains that should NOT be rewritten)
-POSTSRSD_SECRETS (required, content for secrets file - one secret per line, or use POSTSRSD_SECRETS__FILE for Docker secrets)
 
 ## Optional
+
+POSTSRSD_SECRETS (content for secrets file - one secret per line, or use POSTSRSD_SECRETS__FILE for Docker secrets)
+POSTSRSD_LOCAL_DOMAINS (e.g., ac.com,bc.com - comma-separated list of domains that should NOT be rewritten)
 
 POSTSRSD_SEPARATOR (default: = - SRS tag separator: =|+|-)
 POSTSRSD_HASH_LENGTH (default: 4 - SRS hash signature length)
@@ -24,15 +25,12 @@ POSTSRSD_DEBUG (default: off - enable verbose debug logging)
 
 The following values are hardcoded in the Docker container configuration:
 
-- secrets-file = "/var/lib/postsrsd/postsrsd.secret" (created from POSTSRSD_SECRETS)
+- secrets-file = "/var/lib/postsrsd/postsrsd.secret" (created from POSTSRSD_SECRETS, or auto-generated if not provided)
 - unprivileged-user = "postsrsd" (dedicated user created in Dockerfile)
-- maxage = 21 days (SRS token expiration - hardcoded in PostSRSd source, not configurable)
 
 ## Notes
 
 - Uses TCP socketmap on port 11380 for cross-container communication (exposed in Dockerfile)
-- Logs to stderr (captured by Docker logs)
-- No chroot (container provides isolation)
 - Secret file must be persistent across restarts (`/var/lib/postsrsd` volume)
 - Postfix connects via canonical maps:
   - sender_canonical_maps = socketmap:inet:postsrsd:11380:forward

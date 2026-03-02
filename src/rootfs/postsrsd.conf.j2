@@ -13,8 +13,13 @@
 # Example: domains = { "example.com", "example.org", "example.net" }
 # Input: POSTSRSD_LOCAL_DOMAINS="ac.com,bc.com" (comma-separated)
 #
-{% set domain_list = environ('POSTSRSD_LOCAL_DOMAINS').split(',') %}
+{% set domains_env = environ('POSTSRSD_LOCAL_DOMAINS') %}
+{% if domains_env %}
+{% set domain_list = domains_env.split(',') %}
 domains = { "{{ domain_list|join('", "') }}" }
+{% else %}
+domains = {}
+{% endif %}
 
 # ==============================================================================
 # Dedicated SRS Rewrite Domain
@@ -45,7 +50,7 @@ srs-domain = "{{ environ('POSTSRSD_SRS_DOMAIN') }}"
 #   sender_canonical_maps = socketmap:inet:postsrsd:11380:forward
 #   recipient_canonical_maps = socketmap:inet:postsrsd:11380:reverse
 #
-socketmap = inet:11380@0.0.0.0
+socketmap = inet:0.0.0.0:11380
 
 # ==============================================================================
 # Socketmap Connection Keep-Alive Timeout
