@@ -1,40 +1,26 @@
-# Environment variables
+# PostSRSd Container
 
-## Required
+Container images based on [PostSRSd](https://github.com/roehling/postsrsd), implementing the Sender Rewriting Scheme (SRS) for Postfix via TCP socketmap.
 
-POSTSRSD_SRS_DOMAIN (required, e.g., srs.cc.com - the domain used for SRS rewriting)
+Sources are available on [GitHub](https://github.com/anthochamp/container-postsrsd).
 
-## Optional
+See [README.md](README.md) for full documentation.
 
-POSTSRSD_SECRETS (content for secrets file - one secret per line, or use POSTSRSD_SECRETS__FILE for Docker secrets)
-POSTSRSD_LOCAL_DOMAINS (e.g., ac.com,bc.com - comma-separated list of domains that should NOT be rewritten)
+## Image tags
 
-POSTSRSD_SEPARATOR (default: = - SRS tag separator: =|+|-)
-POSTSRSD_HASH_LENGTH (default: 4 - SRS hash signature length)
-POSTSRSD_HASH_MINIMUM (default: 4 - minimum acceptable hash signature length)
+- `x.y.z-postsrsdA.B.C`: Container image version `x.y.z` with PostSRSd `A.B.C`.
+- `edge-postsrsdA.B.C`: Latest commit build with PostSRSd `A.B.C`.
 
-POSTSRSD_KEEP_ALIVE (default: 30 - socketmap connection keep-alive timeout in seconds)
+**Tag aliases:**
 
-POSTSRSD_ORIGINAL_ENVELOPE (default: embedded - how to store original sender: embedded|database)
-POSTSRSD_ENVELOPE_DATABASE (default: empty - database for envelope storage, e.g., sqlite:./senders.db or redis:host:port)
-
-POSTSRSD_ALWAYS_REWRITE (default: off - force rewrite even for already-rewritten addresses)
-POSTSRSD_DEBUG (default: off - enable verbose debug logging)
-
-## Hardcoded Values (Docker-specific)
-
-The following values are hardcoded in the Docker container configuration:
-
-- secrets-file = "/var/lib/postsrsd/postsrsd.secret" (created from POSTSRSD_SECRETS, or auto-generated if not provided)
-- unprivileged-user = "postsrsd" (dedicated user created in Dockerfile)
-
-## Notes
-
-- Uses TCP socketmap on port 11380 for cross-container communication (exposed in Dockerfile)
-- Secret file must be persistent across restarts (`/var/lib/postsrsd` volume)
-- Postfix connects via canonical maps:
-  - sender_canonical_maps = socketmap:inet:postsrsd:11380:forward
-  - recipient_canonical_maps = socketmap:inet:postsrsd:11380:reverse
-- For multi-domain setups, use a dedicated SRS domain (subdomain of server)
-- `embedded` mode is recommended for most use cases (stateless, limits to 51 char senders)
-- `database` mode requires SQLite/Redis and removes length restrictions
+- `x.y-postsrsdA.B.C`: Latest patch of `x.y` (major.minor) with PostSRSd `A.B.C`.
+- `x-postsrsdA.B.C`: Latest minor+patch of `x` (major) with PostSRSd `A.B.C`.
+- `x.y.z`: Version `x.y.z` with latest PostSRSd (only latest container version updated).
+- `x.y`: Latest patch of `x.y` (major.minor) with latest PostSRSd (only latest container major.minor updated).
+- `x`: Latest minor+patch of `x` (major) with latest PostSRSd (only latest container major updated).
+- `postsrsdA.B`: Latest container with latest patch of PostSRSd `A.B` (major.minor).
+- `postsrsdA`: Latest container with latest minor+patch of PostSRSd `A` (major).
+- `latest`: Latest `x.y.z-postsrsdA.B.C` tag.
+- `edge-postsrsdA.B`: Latest commit build with latest patch of PostSRSd `A.B` (major.minor).
+- `edge-postsrsdA`: Latest commit build with latest minor+patch of PostSRSd `A` (major).
+- `edge`: Latest `edge-postsrsdA.B.C` tag.
