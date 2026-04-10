@@ -1,5 +1,7 @@
 {
 	"private": true,
+	"description": "PostSRSd container implementing Sender Rewriting Scheme (SRS) for Postfix via TCP socketmap",
+	"author": "Anthony Champagne <dev@anthonychampagne.fr>",
 	"scripts": {
 		"test": "vitest run",
 		"tsc:check": "tsc -noEmit -p ./tsconfig.json",

@@ -13,14 +13,21 @@ See [README.md](README.md) for full documentation.
 
 **Tag aliases:**
 
-- `x.y-postsrsdA.B.C`: Latest patch of `x.y` (major.minor) with PostSRSd `A.B.C`.
-- `x-postsrsdA.B.C`: Latest minor+patch of `x` (major) with PostSRSd `A.B.C`.
+- `x.y-postsrsdA.B.C`: Latest patch of `x.y` with PostSRSd `A.B.C`.
+- `x-postsrsdA.B.C`: Latest minor+patch of `x` with PostSRSd `A.B.C`.
+- `x.y.z-postsrsdA.B`: Version `x.y.z` with latest patch of PostSRSd `A.B` (only latest container version updated).
+- `x.y-postsrsdA.B`: Latest patch of `x.y` with latest patch of PostSRSd `A.B`.
+- `x-postsrsdA.B`: Latest minor+patch of `x` with latest patch of PostSRSd `A.B`.
+- `x.y.z-postsrsdA`: Version `x.y.z` with latest minor+patch of PostSRSd `A` (only latest container version updated).
+- `x.y-postsrsdA`: Latest patch of `x.y` with latest minor+patch of PostSRSd `A`.
+- `x-postsrsdA`: Latest minor+patch of `x` with latest minor+patch of PostSRSd `A`.
 - `x.y.z`: Version `x.y.z` with latest PostSRSd (only latest container version updated).
-- `x.y`: Latest patch of `x.y` (major.minor) with latest PostSRSd (only latest container major.minor updated).
-- `x`: Latest minor+patch of `x` (major) with latest PostSRSd (only latest container major updated).
-- `postsrsdA.B`: Latest container with latest patch of PostSRSd `A.B` (major.minor).
-- `postsrsdA`: Latest container with latest minor+patch of PostSRSd `A` (major).
+- `x.y`: Latest patch of `x.y` with latest PostSRSd.
+- `x`: Latest minor+patch of `x` with latest PostSRSd.
+- `postsrsdA.B.C`: Latest container with PostSRSd `A.B.C`.
+- `postsrsdA.B`: Latest container with latest patch of PostSRSd `A.B`.
+- `postsrsdA`: Latest container with latest minor+patch of PostSRSd `A`.
 - `latest`: Latest `x.y.z-postsrsdA.B.C` tag.
-- `edge-postsrsdA.B`: Latest commit build with latest patch of PostSRSd `A.B` (major.minor).
-- `edge-postsrsdA`: Latest commit build with latest minor+patch of PostSRSd `A` (major).
+- `edge-postsrsdA.B`: Latest commit build with latest patch of PostSRSd `A.B`.
+- `edge-postsrsdA`: Latest commit build with latest minor+patch of PostSRSd `A`.
 - `edge`: Latest `edge-postsrsdA.B.C` tag.
