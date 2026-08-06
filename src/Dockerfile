@@ -4,7 +4,7 @@ FROM alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6ee
 RUN apk add --no-cache cmake build-base openssl-dev patch sqlite-dev hiredis-dev git autoconf automake libtool
 
 # renovate: datasource=github-releases depName=roehling/postsrsd
-ARG POSTSRSD_VERSION=2.0.11
+ARG POSTSRSD_VERSION=2.3.0
 
 RUN set -ex; \
 	wget -q "https://github.com/roehling/postsrsd/archive/refs/tags/${POSTSRSD_VERSION}.tar.gz" -O /tmp/postsrsd.tar.gz; \
