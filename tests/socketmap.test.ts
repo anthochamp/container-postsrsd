@@ -62,6 +62,8 @@ describe("startup", () => {
 	it("fails to start without POSTSRSD_SRS_DOMAIN", async () => {
 		// Run without --detach; the entrypoint exits 1 immediately when
 		// POSTSRSD_SRS_DOMAIN is missing, so dockerContainerRun should reject.
-		await expect(dockerContainerRun(containerImageName, { rm: true })).rejects.toThrow();
+		await expect(
+			dockerContainerRun(containerImageName, { rm: true }),
+		).rejects.toThrow();
 	});
 });

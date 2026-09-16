@@ -49,7 +49,10 @@ export async function socketmapQuery(
 	}
 }
 
-type ContainerRunOptions = Omit<DockerContainerRunOptions, "name" | "context" | "detach">;
+type ContainerRunOptions = Omit<
+	DockerContainerRunOptions,
+	"name" | "context" | "detach"
+>;
 
 type UseContainerOptions = {
 	bindPort?: number;
