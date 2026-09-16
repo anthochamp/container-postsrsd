@@ -1,5 +1,6 @@
-import { execAsync } from "@ac-essentials/misc-util";
-import { expect, suite, test } from "vitest";
+import { dockerContainerRun } from "@ac-kit/cmd-docker";
+import { expect, describe, it } from "vitest";
+
 import { initSuite } from "./common";
 
 const SRS_DOMAIN = "srs.test.invalid";
@@ -12,21 +13,18 @@ const DEFAULT_ENV = {
 	POSTSRSD_LOCAL_DOMAINS: LOCAL_DOMAIN,
 };
 
-suite.sequential("socketmap forward", () => {
-	const { startContainer } = initSuite();
+describe("socketmap forward", () => {
+	const { useContainer } = initSuite();
+	const { query } = useContainer({ env: DEFAULT_ENV });
 
-	test("does not rewrite sender from a local domain", async () => {
-		const { query } = await startContainer({ env: DEFAULT_ENV });
-
+	it("does not rewrite sender from a local domain", async () => {
 		const result = await query("forward", TEST_ADDRESS);
 
 		// Local domains need not be rewritten (SPF is not an issue for local mail)
 		expect(result.status).toBe("NOTFOUND");
 	});
 
-	test("rewrites sender from an external domain", async () => {
-		const { query } = await startContainer({ env: DEFAULT_ENV });
-
+	it("rewrites sender from an external domain", async () => {
 		const result = await query("forward", EXTERNAL_ADDRESS);
 
 		// External senders are rewritten to SRS to prevent SPF failures on forward
@@ -36,12 +34,11 @@ suite.sequential("socketmap forward", () => {
 	});
 });
 
-suite.sequential("socketmap reverse", () => {
-	const { startContainer } = initSuite();
+describe("socketmap reverse", () => {
+	const { useContainer } = initSuite();
+	const { query } = useContainer({ env: DEFAULT_ENV });
 
-	test("restores original address from a valid SRS address", async () => {
-		const { query } = await startContainer({ env: DEFAULT_ENV });
-
+	it("restores original address from a valid SRS address", async () => {
 		// Forward an external address to get a valid SRS address to reverse
 		const forwardResult = await query("forward", EXTERNAL_ADDRESS);
 		expect(forwardResult.status).toBe("OK");
@@ -52,23 +49,19 @@ suite.sequential("socketmap reverse", () => {
 		expect(reverseResult.value).toBe(EXTERNAL_ADDRESS);
 	});
 
-	test("does not reverse a plain non-SRS address", async () => {
-		const { query } = await startContainer({ env: DEFAULT_ENV });
-
+	it("does not reverse a plain non-SRS address", async () => {
 		const result = await query("reverse", TEST_ADDRESS);
 
 		expect(result.status).toBe("NOTFOUND");
 	});
 });
 
-suite.sequential("startup", () => {
+describe("startup", () => {
 	const { containerImageName } = initSuite();
 
-	test("fails to start without POSTSRSD_SRS_DOMAIN", async () => {
+	it("fails to start without POSTSRSD_SRS_DOMAIN", async () => {
 		// Run without --detach; the entrypoint exits 1 immediately when
-		// POSTSRSD_SRS_DOMAIN is missing, so execAsync should reject.
-		await expect(
-			execAsync(`docker run --rm ${containerImageName}`),
-		).rejects.toThrow();
+		// POSTSRSD_SRS_DOMAIN is missing, so dockerContainerRun should reject.
+		await expect(dockerContainerRun(containerImageName, { rm: true })).rejects.toThrow();
 	});
 });

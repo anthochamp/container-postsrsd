@@ -1,20 +1,13 @@
-import { randomBytes } from "node:crypto";
 import * as path from "node:path";
-import {
-	dockerBuildxBuild,
-	dockerContainerRm,
-	dockerContainerRun,
-	dockerContextShow,
-	dockerContextUse,
-	dockerImageRm,
-} from "@ac-essentials/cli";
-import {
-	type EnvVariables,
-	getRandomEphemeralPort,
-	sleep,
-	TcpSocket,
-} from "@ac-essentials/misc-util";
-import { afterAll, afterEach, beforeAll, vi } from "vitest";
+
+import type { DockerContainerRunOptions } from "@ac-kit/cmd-docker";
+import { getRandomEphemeralPort, sleep } from "@ac-kit/core";
+import type { EnvVariables } from "@ac-kit/format-shell";
+import { initDockerSuite } from "@ac-kit/integration-test-util";
+import { SocketmapClient, type SocketmapResult } from "@ac-kit/net-socketmap";
+import { DuplexTransport } from "@ac-kit/net-transport-node";
+import { TcpSocket } from "@ac-kit/node";
+import { beforeAll, vi } from "vitest";
 
 const srcPath = path.resolve(path.join(__dirname, "..", "src"));
 const POSTSRSD_CONTAINER_PORT = 11380;
@@ -36,59 +29,29 @@ export async function isSocketmapReady(port: number): Promise<boolean> {
 	}
 }
 
-export type SocketmapResult = { status: string; value: string };
-
 export async function socketmapQuery(
 	port: number,
 	table: "forward" | "reverse",
 	address: string,
 	existingSocket?: TcpSocket,
 ): Promise<SocketmapResult> {
-	const payload = `${table} ${address}`;
-	const request = `${payload.length}:${payload},`;
-
 	const socket = existingSocket ?? TcpSocket.from();
-	socket.timeout = 5000;
 
 	try {
-		await socket.connect(port, "localhost");
-
-		return await new Promise<SocketmapResult>((resolve, reject) => {
-			let buffer = "";
-
-			socket.subscribe("timeout", () => {
-				socket.destroy();
-				reject(new Error("socketmap query timed out"));
-			});
-
-			socket.subscribe("error", (err) => {
-				socket.destroy();
-				reject(err);
-			});
-
-			socket.stream.on("data", (chunk: Buffer) => {
-				buffer += chunk.toString();
-				const colonIdx = buffer.indexOf(":");
-				if (colonIdx === -1) return;
-				const len = Number.parseInt(buffer.slice(0, colonIdx), 10);
-				if (buffer.length < colonIdx + 1 + len + 1) return;
-				const data = buffer.slice(colonIdx + 1, colonIdx + 1 + len);
-				socket.destroy();
-				const spaceIdx = data.indexOf(" ");
-				const status = spaceIdx === -1 ? data : data.slice(0, spaceIdx);
-				const value = spaceIdx === -1 ? "" : data.slice(spaceIdx + 1);
-				resolve({ status, value });
-			});
-
-			socket.write(Buffer.from(request)).catch(reject);
+		await socket.connect(port, { host: "localhost" });
+		const client = new SocketmapClient(new DuplexTransport(socket.stream), {
+			defaultTimeoutMs: 5000,
 		});
+		return await client.lookup(table, address);
 	} catch (err: unknown) {
 		if (!socket.destroyed) socket.destroy();
 		throw err;
 	}
 }
 
-type StartContainerOptions = {
+type ContainerRunOptions = Omit<DockerContainerRunOptions, "name" | "context" | "detach">;
+
+type UseContainerOptions = {
 	bindPort?: number;
 	env?: EnvVariables;
 	startupDelayMs?: number;
@@ -96,60 +59,34 @@ type StartContainerOptions = {
 };
 
 export function initSuite(containerNamePrefix = "test-") {
-	let initialContext: string;
-	const containerName = `${containerNamePrefix}${randomBytes(20).toString("hex")}`;
-	const containerImageName = `${containerName}-img`;
+	let pendingRunOptions: ContainerRunOptions = {};
+	let pendingWaitReady: () => Promise<void> = async () => {};
 
-	async function stopContainer() {
-		try {
-			await dockerContainerRm([containerName], { force: true });
-		} catch (_) {}
-	}
-
-	beforeAll(async () => {
-		initialContext = await dockerContextShow();
-		await dockerContextUse("default");
-
-		await stopContainer();
-
-		try {
-			await dockerImageRm([containerImageName], { force: true });
-		} catch (_) {}
-
-		await dockerBuildxBuild(srcPath, { tags: [containerImageName] });
-	});
-
-	afterAll(async () => {
-		try {
-			await dockerImageRm([containerImageName], { force: true });
-		} catch (_) {}
-
-		try {
-			await dockerContextUse(initialContext);
-		} catch (_) {}
-	});
-
-	afterEach(async () => {
-		await stopContainer();
+	const { containerImageName } = initDockerSuite(srcPath, {
+		containerNamePrefix,
+		containerRunOptions: () => pendingRunOptions,
+		onContainerStarted: () => pendingWaitReady(),
 	});
 
 	return {
-		startContainer: async (options?: StartContainerOptions) => {
+		containerImageName,
+		/** Registers the container's run options for every test in this describe. */
+		useContainer: (options?: UseContainerOptions) => {
 			const bindPort = options?.bindPort ?? getRandomEphemeralPort();
 
-			await dockerContainerRun(containerImageName, undefined, undefined, {
-				detach: true,
-				name: containerName,
-				publish: [`${bindPort}:${POSTSRSD_CONTAINER_PORT}`],
-				env: options?.env,
+			beforeAll(() => {
+				pendingRunOptions = {
+					publish: [`${bindPort}:${POSTSRSD_CONTAINER_PORT}`],
+					env: options?.env,
+				};
+				pendingWaitReady = async () => {
+					await vi.waitUntil(() => isSocketmapReady(bindPort), {
+						timeout: options?.tcpWaitTimeoutMs ?? 15000,
+						interval: 500,
+					});
+					await sleep(options?.startupDelayMs ?? 500);
+				};
 			});
-
-			await vi.waitUntil(() => isSocketmapReady(bindPort), {
-				timeout: options?.tcpWaitTimeoutMs ?? 15000,
-				interval: 500,
-			});
-
-			await sleep(options?.startupDelayMs ?? 500);
 
 			return {
 				bindPort,
@@ -157,7 +94,5 @@ export function initSuite(containerNamePrefix = "test-") {
 					socketmapQuery(bindPort, table, address),
 			};
 		},
-		containerName,
-		containerImageName,
 	};
 }
